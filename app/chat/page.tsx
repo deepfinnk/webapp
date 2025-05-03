@@ -14,6 +14,30 @@ interface ChatHistoryItem {
   created_at: string
 }
 
+interface Message {
+  id: number
+  text: string
+  isUser: boolean
+  points?: string[] // For bullet points in a plan
+  isPlan?: boolean // Flag to render as a plan with buttons
+}
+
+// Utility function to format time in a consistent way between server and client
+const formatTimeString = (dateStr: string) => {
+  try {
+    // Extract hours and minutes in a consistent format
+    const date = new Date(dateStr);
+    const hours = date.getHours();
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12; // Convert 0 to 12 for 12-hour format
+    
+    return `${displayHours}:${minutes} ${ampm}`;
+  } catch (e) {
+    return 'Invalid date';
+  }
+};
+
 export default function Chat() {
   const [message, setMessage] = useState("")
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false)
@@ -21,7 +45,7 @@ export default function Chat() {
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
   const [isHistoryLoading, setIsHistoryLoading] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
       text: "Hi, I am Finn your Personal Assistant and Financial Consultant.",
@@ -90,29 +114,39 @@ export default function Chat() {
     fetchChatHistory();
   }, []);
   
-  // Helper function to format dates
+  // Helper function to format dates in a consistent way for server and client
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    // Check if the date is today
-    if (date.toDateString() === now.toDateString()) {
-      return 'Today';
+    try {
+      const date = new Date(dateString);
+      
+      // Use a fixed reference date for comparison to ensure consistency
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const itemDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      
+      // Check if the date is today
+      if (itemDate.getTime() === today.getTime()) {
+        return 'Today';
+      }
+      
+      // Check if the date is yesterday
+      if (itemDate.getTime() === yesterday.getTime()) {
+        return 'Yesterday';
+      }
+      
+      // For other dates, use a fixed format string rather than localeString
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[date.getMonth()];
+      const day = date.getDate();
+      const year = date.getFullYear() !== now.getFullYear() ? ` ${date.getFullYear()}` : '';
+      
+      return `${month} ${day}${year}`;
+    } catch (e) {
+      return 'Unknown date';
     }
-    
-    // Check if the date is yesterday
-    if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    }
-    
-    // Otherwise, return the formatted date
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-    });
   };
   
   // Function to start a new chat
@@ -128,6 +162,43 @@ export default function Chat() {
     // Close the history panel
     setIsHistoryPanelOpen(false);
   }
+
+  // Add handlers for plan confirmation/cancellation
+  const handleConfirmPlan = () => {
+    // Update the last message to remove the buttons but keep the plan
+    setMessages(prev => {
+      const updatedMessages = [...prev];
+      const lastMessage = {...updatedMessages[updatedMessages.length - 1]};
+      
+      if (lastMessage.isPlan) {
+        lastMessage.isPlan = false; // Remove the buttons but keep the formatted plan
+        lastMessage.text = "✓ Plan confirmed:\n\n" + lastMessage.text;
+        updatedMessages[updatedMessages.length - 1] = lastMessage;
+      }
+      
+      return updatedMessages;
+    });
+  };
+  
+  const handleCancelPlan = () => {
+    // Remove the plan message entirely
+    setMessages(prev => {
+      const updatedMessages = [...prev];
+      const lastMessage = updatedMessages[updatedMessages.length - 1];
+      
+      if (lastMessage.isPlan) {
+        // Replace with a cancellation message
+        updatedMessages[updatedMessages.length - 1] = {
+          ...lastMessage,
+          isPlan: false,
+          points: undefined,
+          text: "Plan cancelled. How else can I assist you?"
+        };
+      }
+      
+      return updatedMessages;
+    });
+  };
 
   const handleSend = async () => {
     if (message.trim()) {
@@ -167,21 +238,44 @@ export default function Chat() {
         }
 
         const data = await response.json();
-        // Extract the 'result' field from the API response
-        let rawResponse = data.result || "Sorry, I didn't get a valid answer."; 
+        console.log("API response:", data);
 
-        // Strip the prefix if it exists
-        const prefix = "Solution: ";
-        if (typeof rawResponse === 'string' && rawResponse.startsWith(prefix)) {
-          rawResponse = rawResponse.substring(prefix.length);
+        // Handle the response data based on its structure
+        let finnResponse: Partial<Message> = { 
+          id: messages.length + 1, 
+          isUser: false,
+          text: "Sorry, I didn't get a valid answer."
+        };
+
+        // Check if the response contains points for a plan
+        if (data.result && data.result.points && Array.isArray(data.result.points) && data.result.points.length > 0) {
+          // It's a plan with bullet points
+          const points = data.result.points;
+          const formattedText = points.join('\n\n'); // Join points with newlines for display in text property
+          
+          finnResponse = {
+            id: messages.length + 1,
+            text: formattedText,
+            isUser: false,
+            isPlan: true,
+            points: points
+          };
+        } else if (data.result) {
+          // Regular text response
+          let rawResponse = typeof data.result === 'string' ? 
+            data.result : 
+            JSON.stringify(data.result);
+            
+          // Strip the prefix if it exists
+          const prefix = "Solution: ";
+          if (typeof rawResponse === 'string' && rawResponse.startsWith(prefix)) {
+            rawResponse = rawResponse.substring(prefix.length);
+          }
+          
+          finnResponse.text = rawResponse;
         }
-        
-        const finnResponse = rawResponse;
 
-        setMessages((prev) => [
-          ...prev,
-          { id: prev.length + 1, text: finnResponse, isUser: false },
-        ]);
+        setMessages((prev) => [...prev, finnResponse as Message]);
 
         // Fetch updated chat history after successful query
         fetchChatHistory();
@@ -203,6 +297,59 @@ export default function Chat() {
 
   // Function to load a chat from history
   const loadChatFromHistory = (historyItem: ChatHistoryItem) => {
+    // Parse the result to check if it contains bullet points
+    let responseMessage: Message = {
+      id: 3,
+      text: '',
+      isUser: false
+    };
+    
+    try {
+      // Check if result is a JSON string that might contain points
+      if (typeof historyItem.result === 'string' && 
+          (historyItem.result.includes('"points"') || historyItem.result.includes("'points'")) && 
+          (historyItem.result.startsWith('{') || historyItem.result.startsWith('['))) {
+        
+        const resultObj = JSON.parse(historyItem.result);
+        
+        if (resultObj.points && Array.isArray(resultObj.points) && resultObj.points.length > 0) {
+          // It's a plan with bullet points
+          responseMessage = {
+            id: 3,
+            text: resultObj.points.join('\n\n'),
+            isUser: false,
+            isPlan: true,
+            points: resultObj.points
+          };
+        } else {
+          responseMessage.text = historyItem.result;
+        }
+      } else if (typeof historyItem.result === 'object' && historyItem.result !== null) {
+        // If result is already an object (not a string)
+        const resultObj = historyItem.result as any;
+        
+        if (resultObj.points && Array.isArray(resultObj.points) && resultObj.points.length > 0) {
+          // It's a plan with bullet points
+          responseMessage = {
+            id: 3,
+            text: resultObj.points.join('\n\n'),
+            isUser: false,
+            isPlan: true,
+            points: resultObj.points
+          };
+        } else {
+          responseMessage.text = JSON.stringify(resultObj);
+        }
+      } else {
+        // Regular text response
+        responseMessage.text = String(historyItem.result);
+      }
+    } catch (e) {
+      // If parsing fails, just use the result as plain text
+      console.error('Error parsing history result:', e);
+      responseMessage.text = String(historyItem.result);
+    }
+    
     setMessages([
       {
         id: 1,
@@ -214,12 +361,9 @@ export default function Chat() {
         text: historyItem.prompt,
         isUser: true,
       },
-      {
-        id: 3,
-        text: historyItem.result,
-        isUser: false,
-      }
+      responseMessage
     ]);
+    
     setIsHistoryPanelOpen(false);
   };
 
@@ -252,7 +396,9 @@ export default function Chat() {
             </div>
           </div>
           <div className="mt-2 text-white">
-            <div className="text-xl font-bold">DeepFinnk</div>
+            <div className="text-xl font-bold">
+              Deep<span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-pink-500">Finn</span>k
+            </div>
             <div className="text-center">0.5</div>
           </div>
         </div>
@@ -265,15 +411,23 @@ export default function Chat() {
             className={`${
               msg.isUser
                 ? "bg-blue-primary rounded-xl p-4 ml-auto max-w-[80%]"
-                : "bg-gray-800 rounded-xl p-4 max-w-[80%]"
+                : msg.isPlan 
+                  ? "bg-gray-900 rounded-xl p-4 max-w-[90%]" 
+                  : "bg-gray-800 rounded-xl p-4 max-w-[80%]"
             }`}
             style={
               !msg.isUser
-                ? {
-                    borderLeft: "4px solid",
-                    borderRight: "4px solid",
-                    borderImage: "linear-gradient(to bottom, #9932CC, #FF6600) 1",
-                  }
+                ? msg.isPlan
+                  ? {
+                      border: "2px solid",
+                      borderImage: "linear-gradient(45deg, #ff0000, #ff7700, #ffff00, #00ff00, #0000ff, #8b00ff) 1",
+                      boxShadow: "0 0 10px rgba(150, 150, 150, 0.2)"
+                    }
+                  : {
+                      borderLeft: "4px solid",
+                      borderRight: "4px solid",
+                      borderImage: "linear-gradient(to bottom, #9932CC, #FF6600) 1",
+                    }
                 : {}
             }
           >
@@ -281,6 +435,34 @@ export default function Chat() {
               {/* Use ReactMarkdown for assistant messages, plain <p> for user */}
               {msg.isUser ? (
                 <p>{msg.text}</p>
+              ) : msg.isPlan ? (
+                // Plan with bullet points and buttons
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold mb-3">Your Financial Plan:</h3>
+                  <ul className="space-y-3">
+                    {msg.points?.map((point, index) => (
+                      <li key={index} className="flex">
+                        <span className="mr-2 text-gray-400">•</span>
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <div className="flex gap-3 mt-4 pt-3 border-t border-gray-700">
+                    <button 
+                      onClick={handleCancelPlan} 
+                      className="flex-1 py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleConfirmPlan}
+                      className="flex-1 py-2 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-lg font-medium transition-colors"
+                    >
+                      Confirm Plan
+                    </button>
+                  </div>
+                </div>
               ) : (
                 // Wrap ReactMarkdown in a div and apply prose styles there
                 <div className="prose prose-invert max-w-none">
@@ -370,12 +552,24 @@ export default function Chat() {
                       {dateString}
                     </div>
                     {items.map((item, index) => {
-                      // Format the time portion of the date
-                      const timeString = new Date(item.created_at).toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                      });
+                      // Use our custom time formatter for consistency between server and client
+                      const timeString = formatTimeString(item.created_at);
+                      
+                      // Check if the result contains a plan with bullet points
+                      let hasPlan = false;
+                      try {
+                        if (typeof item.result === 'string') {
+                          if (item.result.includes('"points"') && (item.result.startsWith('{') || item.result.startsWith('['))) {
+                            const resultObj = JSON.parse(item.result);
+                            hasPlan = resultObj.points && Array.isArray(resultObj.points) && resultObj.points.length > 0;
+                          }
+                        } else if (typeof item.result === 'object' && item.result !== null) {
+                          const resultObj = item.result as any;
+                          hasPlan = resultObj.points && Array.isArray(resultObj.points) && resultObj.points.length > 0;
+                        }
+                      } catch (e) {
+                        // Ignore parsing errors
+                      }
                       
                       return (
                         <button
@@ -384,10 +578,22 @@ export default function Chat() {
                           className="w-full text-left p-4 border-b border-gray-800 hover:bg-gray-900 transition-colors"
                         >
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-sm text-gray-400">{timeString}</span>
+                            <span 
+                              className="font-medium text-sm text-gray-400"
+                              suppressHydrationWarning={true}
+                            >
+                              {timeString}
+                            </span>
                             <ChevronRight className="w-4 h-4 text-gray-600 flex-shrink-0" />
                           </div>
-                          <p className="text-white truncate font-medium">{item.prompt}</p>
+                          <p className="text-white truncate font-medium flex items-center">
+                            {item.prompt}
+                            {hasPlan && (
+                              <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-blue-600 to-purple-600 text-xs rounded-full font-bold">
+                                Plan
+                              </span>
+                            )}
+                          </p>
                         </button>
                       );
                     })}

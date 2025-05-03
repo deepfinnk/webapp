@@ -218,21 +218,21 @@ export default async function Home() {
         }}>
           <div className="flex justify-around"> 
             <div className="flex flex-col items-center text-center w-1/3">
-              <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-brown-primary hover:bg-brown-primary/80 transition-colors">
+              <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-brown-primary hover:bg-brown-primary/80 transition-colors" style={{ border: '2px solid rgba(255, 180, 120, 0.9)' }}>
                 <ArrowUp className="w-6 h-6" />
               </button>
               <span className="mt-2 text-sm">Pay</span>
             </div>
 
             <div className="flex flex-col items-center text-center w-1/3">
-              <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-blue-primary hover:bg-blue-primary/80 transition-colors">
+              <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-blue-primary hover:bg-blue-primary/80 transition-colors" style={{ border: '2px solid rgba(120, 180, 255, 0.9)' }}>
                 <ArrowDown className="w-6 h-6" />
               </button>
               <span className="mt-2 text-sm">Request</span>
             </div>
 
             <div className="flex flex-col items-center text-center w-1/3">
-              <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-purple-primary hover:bg-purple-primary/80 transition-colors">
+              <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-purple-primary hover:bg-purple-primary/80 transition-colors" style={{ border: '2px solid rgba(200, 140, 255, 0.9)' }}>
                 <Plus className="w-6 h-6" />
               </button>
               <span className="mt-2 text-sm">Add</span>
