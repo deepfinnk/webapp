@@ -115,10 +115,14 @@ export default async function Budgeting() {
   } // End of fetch block
 
   return (
-    <>
-      <div className="flex-1 flex flex-col bg-black">
+    <div className="max-w-md mx-auto relative bg-black text-white flex flex-col min-h-screen">
+      {/* Fixed header */}
+      <div className="sticky top-0 left-0 right-0 z-30 bg-black border-b border-gray-800">
         <Header title="Budgeting" />
-
+      </div>
+      
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: "5rem" }}>
         <h1 className="text-4xl font-bold px-4 mt-2 mb-8">Budgeting</h1>
 
         <div className="px-4 mb-6">
@@ -188,8 +192,17 @@ export default async function Budgeting() {
           </div>
         </div>
       </div>
-
-      <Navigation />
-    </>
+      
+      {/* Fixed navigation bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-10 max-w-md mx-auto">
+        <div className="pb-1 pt-1" style={{ 
+          background: 'linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.6) 50%, rgba(0, 0, 0, 0) 100%)',
+          backdropFilter: 'blur(4px)'
+        }}></div>
+        <div className="bg-black border-t border-gray-800 max-w-md mx-auto">
+          <Navigation />
+        </div>
+      </div>
+    </div>
   )
 }

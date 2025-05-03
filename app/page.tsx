@@ -15,6 +15,14 @@ interface AccountDataResponse {
   error?: string; 
 }
 
+// User data interface to match the response from /bunq/user
+interface UserDataResponse {
+  _display_name?: string;
+  _first_name?: string;
+  _last_name?: string;
+  error?: string;
+}
+
 const formatCurrency = (value: number | null | undefined, currency: string = 'EUR'): string => {
   if (value === null || typeof value === 'undefined') {
     return 'N/A';
@@ -59,19 +67,87 @@ async function getAccountData(): Promise<AccountDataResponse> {
   }
 }
 
+// Function to fetch user data from /bunq/user endpoint
+async function getUserData(): Promise<UserDataResponse> {
+  // Construct the URL using the BUNQ_MCP_SERVICE environment variable
+  const baseUrl = process.env.BUNQ_MCP_SERVICE;
+  if (!baseUrl) {
+    console.error('[Home Page] BUNQ_MCP_SERVICE environment variable is not set.');
+    return { error: 'Backend service configuration error.' };
+  }
+
+  // Ensure the URL has a scheme (default to http)
+  let processedBaseUrl = baseUrl;
+  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    processedBaseUrl = `http://${baseUrl}`;
+  }
+
+  const userApiUrl = `${processedBaseUrl}/bunq/user`;
+  console.log(`[Home Page] Fetching user data from ${userApiUrl}`);
+  
+  try {
+    const response = await fetch(userApiUrl, { cache: 'no-store' });
+
+    if (!response.ok) {
+      let errorMsg = `API Error (${response.status})`;
+      try {
+        const errorData = await response.json();
+        errorMsg = errorData.error || errorMsg;
+      } catch (e) {
+        errorMsg = `API Error (${response.status}): ${response.statusText || 'Failed to fetch'}`;
+      }
+      console.error(`[Home Page] User data error: ${errorMsg}`);
+      return { error: errorMsg };
+    }
+
+    const userData: UserDataResponse = await response.json();
+    console.log(`[Home Page] Successfully fetched user data: ${userData._display_name}`);
+    return userData;
+  } catch (error) {
+    console.error('[Home Page] Failed to fetch user data:', error);
+    let errorMessage = 'Failed to connect to user API';
+    if (error instanceof Error) {
+      if (String(error.message).includes('ECONNREFUSED')) {
+        errorMessage = `Connection refused at ${userApiUrl}. Is the service running?`;
+      } else if (String(error.message).includes('fetch failed')) {
+        errorMessage = `Fetch failed for ${userApiUrl}. Network issue or incorrect URL?`;
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    return { error: errorMessage };
+  }
+}
+
 export default async function Home() {
-  const { accounts, totalBalance, currency, error } = await getAccountData();
+  // Fetch account data and user data in parallel
+  const [accountData, userData] = await Promise.all([
+    getAccountData(),
+    getUserData()
+  ]);
+  
+  const { accounts, totalBalance, currency, error } = accountData;
+  
+  // Get user display name - fallback to a default if not available
+  const displayName = userData._display_name || 
+                     (userData._first_name && userData._last_name ? 
+                      `${userData._first_name} ${userData._last_name}` : 
+                      'Victor Hornet');
 
   return (
-    <>
-      <div className="flex-1 flex flex-col bg-black text-white min-h-screen"> 
+    <div className="max-w-md mx-auto relative bg-black text-white flex flex-col min-h-screen">
+      {/* Fixed header */}
+      <div className="sticky top-0 left-0 right-0 z-30 bg-black border-b border-gray-800">
         <Header title="Home" showNotification={true} />
-
+      </div>
+      
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: "9rem" }}>
         <h1 className="text-4xl font-bold px-4 mt-2 mb-8">Home</h1>
 
-        <div className="px-4 mb-6 flex-grow"> 
+        <div className="px-4 mb-6"> 
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl">Victor Hornet</h2> 
+            <h2 className="text-2xl">{displayName}</h2> 
             <ChevronDown className="w-6 h-6" />
           </div>
 
@@ -131,32 +207,44 @@ export default async function Home() {
             )}
           </div>
         </div>
-
-        <div className="flex justify-around pt-4 pb-4"> 
-          <div className="flex flex-col items-center text-center w-1/3">
-            <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-brown-primary hover:bg-brown-primary/80 transition-colors">
-              <ArrowUp className="w-6 h-6" />
-            </button>
-            <span className="mt-2 text-sm">Pay</span>
-          </div>
-
-          <div className="flex flex-col items-center text-center w-1/3">
-            <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-blue-primary hover:bg-blue-primary/80 transition-colors">
-              <ArrowDown className="w-6 h-6" />
-            </button>
-            <span className="mt-2 text-sm">Request</span>
-          </div>
-
-          <div className="flex flex-col items-center text-center w-1/3">
-            <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-purple-primary hover:bg-purple-primary/80 transition-colors">
-              <Plus className="w-6 h-6" />
-            </button>
-            <span className="mt-2 text-sm">Add</span>
-          </div>
-        </div>
       </div>
 
-      <Navigation />
-    </>
+      {/* Fixed navigation bar with action buttons above it */}
+      <div className="fixed bottom-0 left-0 right-0 z-10 max-w-md mx-auto">
+        {/* Action buttons - positioned just above the navigation */}
+        <div className="pb-1 pt-1 border-gray-800" style={{ 
+          background: 'linear-gradient(to top, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0) 100%)',
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div className="flex justify-around"> 
+            <div className="flex flex-col items-center text-center w-1/3">
+              <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-brown-primary hover:bg-brown-primary/80 transition-colors">
+                <ArrowUp className="w-6 h-6" />
+              </button>
+              <span className="mt-2 text-sm">Pay</span>
+            </div>
+
+            <div className="flex flex-col items-center text-center w-1/3">
+              <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-blue-primary hover:bg-blue-primary/80 transition-colors">
+                <ArrowDown className="w-6 h-6" />
+              </button>
+              <span className="mt-2 text-sm">Request</span>
+            </div>
+
+            <div className="flex flex-col items-center text-center w-1/3">
+              <button className="action-button w-14 h-14 rounded-full flex items-center justify-center bg-purple-primary hover:bg-purple-primary/80 transition-colors">
+                <Plus className="w-6 h-6" />
+              </button>
+              <span className="mt-2 text-sm">Add</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Navigation bar */}
+        <div className="bg-black border-t border-gray-800 max-w-md mx-auto">
+          <Navigation />
+        </div>
+      </div>
+    </div>
   )
 }

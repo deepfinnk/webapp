@@ -24,7 +24,7 @@ export default function Header({ title, showNotification = false }: HeaderProps)
         )}
       </div>
       <Link href="/chat">
-        <div className="w-10 h-10 relative">
+        <div className="w-14 h-14 relative">
           <div className="absolute inset-0 rounded-full overflow-hidden flex items-center justify-center">
             <div className="w-[90%] h-[90%] relative">
               <Image src="/images/finn-emoji.png" alt="Finn emoji" fill className="object-contain" />
