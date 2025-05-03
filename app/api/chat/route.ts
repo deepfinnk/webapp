@@ -2,31 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { task } = await req.json();
+    const { prompt } = await req.json();
 
-    if (!task) {
-      return NextResponse.json({ error: 'Task is required' }, { status: 400 });
+    if (!prompt) {
+      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    // Use the server-side environment variable (no NEXT_PUBLIC_ prefix needed)
-    const apiUrl = process.env.BUNQ_MCP_SERVICE;
-    if (!apiUrl) {
-      console.error('BUNQ_MCP_SERVICE environment variable is not set.');
-      return NextResponse.json({ error: 'API service configuration error' }, { status: 500 });
-    }
+    const baseUrl = process.env.EXTERNAL_QUERY_URL || 'http://127.0.0.1:5001';
 
-    // Prepend http:// if scheme is missing and it's localhost or just numbers/dots
-    let externalApiUrl = apiUrl;
-    if (!apiUrl.startsWith('http') && (apiUrl.startsWith('localhost') || /^\d+(\.\d+)*(:\d+)?$/.test(apiUrl))) {
-        externalApiUrl = `http://${apiUrl}`;
-    } else if (!apiUrl.startsWith('http')) {
-        // Assume https for other cases if no scheme is provided
-        externalApiUrl = `https://${apiUrl}`;
+    let externalApiUrl = baseUrl;
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+        externalApiUrl = `http://${baseUrl}`;
     }
     
-    externalApiUrl = `${externalApiUrl}/task`; // Append the endpoint path
+    externalApiUrl = `${externalApiUrl}/query`;
 
-    console.log(`[API Route] Forwarding request to: ${externalApiUrl} with task: ${task}`);
+    console.log(`[API Route] Forwarding request to: ${externalApiUrl} with prompt: ${prompt}`);
 
     const response = await fetch(externalApiUrl, {
       method: 'POST',
@@ -34,7 +25,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
         // Add any other necessary headers here, e.g., Authorization if needed
       },
-      body: JSON.stringify({ task }),
+      body: JSON.stringify({ prompt }),
     });
 
     // Log the response status from the external API
@@ -60,14 +51,13 @@ export async function POST(req: NextRequest) {
       errorMessage = error.message;
     }
     // Add more specific logging for network errors
+    const finalUrl = (process.env.EXTERNAL_QUERY_URL || 'http://127.0.0.1:5001') + '/query';
     if (String(error).includes('ECONNREFUSED')) {
-        const serviceUrl = process.env.BUNQ_MCP_SERVICE || 'undefined';
-        console.error(`[API Route] Connection refused at ${serviceUrl}/task. Is the service running?`);
-        errorMessage = 'Could not connect to the backend service.';
+        console.error(`[API Route] Connection refused at ${finalUrl}. Is the service running?`);
+        errorMessage = 'Could not connect to the backend query service.';
     } else if (String(error).includes('fetch failed')) {
-         const serviceUrl = process.env.BUNQ_MCP_SERVICE || 'undefined';
-        console.error(`[API Route] Fetch failed for ${serviceUrl}/task. Network issue or incorrect URL?`);
-        errorMessage = 'Failed to fetch from the backend service.';
+         console.error(`[API Route] Fetch failed for ${finalUrl}. Network issue or incorrect URL?`);
+        errorMessage = 'Failed to fetch from the backend query service.';
     }
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

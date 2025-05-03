@@ -48,7 +48,7 @@ export default function Chat() {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ task: currentMessage }),
+          body: JSON.stringify({ prompt: currentMessage }),
         });
 
         setIsWaitingForResponse(false);
@@ -68,8 +68,8 @@ export default function Chat() {
         }
 
         const data = await response.json();
-        // Extract the 'answer' field from the API response
-        let rawResponse = data.answer || "Sorry, I didn't get a valid answer."; 
+        // Extract the 'result' field from the API response
+        let rawResponse = data.result || "Sorry, I didn't get a valid answer."; 
 
         // Strip the prefix if it exists
         const prefix = "Solution: ";
