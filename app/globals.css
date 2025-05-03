@@ -1,0 +1,135 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 0, 0, 0;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+}
+
+@layer components {
+  .nav-item {
+    @apply flex flex-col items-center justify-center text-xs text-gray-400;
+  }
+
+  .nav-item.active {
+    @apply text-blue-active;
+  }
+
+  .account-card {
+    @apply rounded-xl p-4 flex flex-col;
+  }
+
+  .action-button {
+    @apply rounded-full w-14 h-14 flex items-center justify-center text-white;
+  }
+}
+
+/* Floating animation for particles */
+@keyframes float-0 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate(15px, -15px) scale(1.2) rotate(45deg);
+  }
+  66% {
+    transform: translate(-15px, 15px) scale(0.8) rotate(-45deg);
+  }
+}
+
+@keyframes float-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate(-20px, -10px) scale(1.1) rotate(-30deg);
+  }
+  66% {
+    transform: translate(20px, 10px) scale(0.9) rotate(30deg);
+  }
+}
+
+@keyframes float-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate(10px, 20px) scale(1.2) rotate(60deg);
+  }
+  66% {
+    transform: translate(-10px, -20px) scale(0.8) rotate(-60deg);
+  }
+}
+
+@keyframes float-3 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate(-15px, 10px) scale(1.1) rotate(-45deg);
+  }
+  66% {
+    transform: translate(15px, -10px) scale(0.9) rotate(45deg);
+  }
+}
+
+@keyframes float-4 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate(20px, 5px) scale(1.2) rotate(30deg);
+  }
+  66% {
+    transform: translate(-20px, -5px) scale(0.8) rotate(-30deg);
+  }
+}
+
+@keyframes float-5 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate(-10px, -15px) scale(1.1) rotate(-60deg);
+  }
+  66% {
+    transform: translate(10px, 15px) scale(0.9) rotate(60deg);
+  }
+}
+
+/* Pulse animation for the rainbow border */
+@keyframes rainbow-pulse {
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+@keyframes subtle-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8%); /* Smaller bounce */
+  }
+}
+
+.animate-bounce-subtle {
+  animation: subtle-bounce 1.5s ease-in-out infinite; /* Slower, smoother bounce */
+}
