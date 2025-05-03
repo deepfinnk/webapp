@@ -203,7 +203,10 @@ export default function Chat() {
 
   const handleSend = async () => {
     if (message.trim()) {
-      const userMessage = { id: messages.length + 1, text: message, isUser: true };
+      // Generate a unique timestamp-based ID for the user message
+      const messageId = Date.now();
+      const userMessage = { id: messageId, text: message, isUser: true };
+      
       // Add user message immediately
       setMessages((prev) => [...prev, userMessage]);
       const currentMessage = message; // Store message before clearing
@@ -242,38 +245,80 @@ export default function Chat() {
         console.log("API response:", data);
 
         // Handle the response data based on its structure
+        // Generate a unique timestamp-based ID for the assistant response
+        const responseId = Date.now() + 100; // Add offset to ensure uniqueness from user message
+        
         let finnResponse: Partial<Message> = { 
-          id: messages.length + 1, 
+          id: responseId, 
           isUser: false,
           text: "Sorry, I didn't get a valid answer."
         };
 
-        // Check if the response contains points for a plan
-        if (data.result && data.result.points && Array.isArray(data.result.points) && data.result.points.length > 0) {
-          // It's a plan with bullet points
-          const points = data.result.points;
-          const formattedText = points.join('\n\n'); // Join points with newlines for display in text property
-          
-          finnResponse = {
-            id: messages.length + 1,
-            text: formattedText,
-            isUser: false,
-            isPlan: true,
-            points: points
-          };
-        } else if (data.result) {
-          // Regular text response
-          let rawResponse = typeof data.result === 'string' ? 
-            data.result : 
-            JSON.stringify(data.result);
+        console.log("Processing response with data:", data);
+        
+        try {
+          // First, check if the response directly contains points
+          if (data.result && data.result.points && Array.isArray(data.result.points) && data.result.points.length > 0) {
+            // Direct bullet points in the response
+            const points = data.result.points;
+            const formattedText = points.join('\n\n'); // Join points with newlines for display in text property
             
-          // Strip the prefix if it exists
-          const prefix = "Solution: ";
-          if (typeof rawResponse === 'string' && rawResponse.startsWith(prefix)) {
-            rawResponse = rawResponse.substring(prefix.length);
+            console.log("Found direct points in result:", points);
+            
+            finnResponse = {
+              id: responseId,
+              text: formattedText,
+              isUser: false,
+              isPlan: true,
+              points: points
+            };
+          } 
+          // Check if result is a stringified JSON that might contain points
+          else if (typeof data.result === 'string' && 
+              (data.result.includes('"points"') || data.result.includes("'points'")) && 
+              (data.result.startsWith('{') || data.result.startsWith('['))) {
+            
+            console.log("Result appears to be stringified JSON with points:", data.result.substring(0, 100));
+            
+            const resultObj = JSON.parse(data.result);
+            
+            if (resultObj.points && Array.isArray(resultObj.points) && resultObj.points.length > 0) {
+              // It's a plan with bullet points
+              const points = resultObj.points;
+              const formattedText = points.join('\n\n');
+              
+              console.log("Parsed points from stringified JSON:", points);
+              
+              finnResponse = {
+                id: responseId,
+                text: formattedText,
+                isUser: false,
+                isPlan: true,
+                points: points
+              };
+            } else {
+              // It's JSON but doesn't have valid points
+              finnResponse.text = data.result;
+            }
+          } else if (data.result) {
+            // Regular text response
+            let rawResponse = typeof data.result === 'string' ? 
+              data.result : 
+              JSON.stringify(data.result);
+              
+            // Strip the prefix if it exists
+            const prefix = "Solution: ";
+            if (typeof rawResponse === 'string' && rawResponse.startsWith(prefix)) {
+              rawResponse = rawResponse.substring(prefix.length);
+            }
+            
+            finnResponse.text = rawResponse;
           }
-          
-          finnResponse.text = rawResponse;
+        } catch (e) {
+          console.error("Error processing response:", e);
+          if (data.result) {
+            finnResponse.text = String(data.result);
+          }
         }
 
         setMessages((prev) => [...prev, finnResponse as Message]);
@@ -351,18 +396,24 @@ export default function Chat() {
       responseMessage.text = String(historyItem.result);
     }
     
+    // Generate a unique timestamp-based ID for the message set
+    const baseId = Date.now();
+    
     setMessages([
       {
-        id: 1,
+        id: baseId, // Use the base ID for the first message
         text: "Hi, I am Finn your Personal Assistant and Financial Consultant.",
         isUser: false,
       },
       {
-        id: 2,
+        id: baseId + 1, // Increment for each message
         text: historyItem.prompt,
         isUser: true,
       },
-      responseMessage
+      {
+        ...responseMessage,
+        id: baseId + 2 // Ensure the response has a unique ID too
+      }
     ]);
     
     setIsHistoryPanelOpen(false);
