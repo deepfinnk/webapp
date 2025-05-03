@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await response.json();
+    
     // Log the successful response data
     console.log('[API Route] External API response data:', data);
 

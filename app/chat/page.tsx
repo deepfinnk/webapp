@@ -53,6 +53,7 @@ export default function Chat() {
       isUser: false,
     },
   ])
+  const [isImplementingPlan, setIsImplementingPlan] = useState(false); // State for implementation animation
 
   // Function to fetch chat history
   const fetchChatHistory = async () => {
@@ -165,8 +166,47 @@ export default function Chat() {
   }
 
   // Add handlers for plan confirmation/cancellation
-  const handleConfirmPlan = () => {
-    // Update the last message to mark it as confirmed but keep the plan UI
+  const handleConfirmPlan = async () => {
+    // Find the latest plan message
+    const lastPlanMessage = [...messages].reverse().find(msg => msg.isPlan && !msg.isConfirmed);
+    
+    if (!lastPlanMessage || !lastPlanMessage.points) {
+      console.error("No valid plan found to implement");
+      return;
+    }
+    
+    // Format the plan points as a string to send to the API
+    const planText = lastPlanMessage.points.join('\n');
+    
+    setIsImplementingPlan(true); // Start implementation animation
+    try {
+      // Call the implement-plan API endpoint
+      console.log("Sending plan to implement-plan endpoint:", planText.substring(0, 100) + "...");
+      
+      const response = await fetch('/api/implement-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ plan: planText }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: response.statusText }));
+        console.error("Failed to implement plan:", errorData.error);
+        // We'll still mark it as confirmed in the UI, but log the error
+      } else {
+        const data = await response.json();
+        console.log("Plan implementation successful:", data);
+      }
+    } catch (error) {
+      console.error("Error implementing plan:", error);
+      // Continue with UI updates despite the error
+    } finally {
+      setIsImplementingPlan(false); // Stop implementation animation regardless of outcome
+    }
+    
+    // Update message UI to mark it as confirmed
     setMessages(prev => {
       const updatedMessages = [...prev];
       const lastMessage = {...updatedMessages[updatedMessages.length - 1]};
@@ -533,7 +573,9 @@ export default function Chat() {
         ))}
 
         {/* Show the animation only when waiting for response */}
-        <FinnAnimation isVisible={isWaitingForResponse} />
+        <FinnAnimation isVisible={isWaitingForResponse} /> 
+        {/* Show implementation animation */}
+        <FinnAnimation isVisible={isImplementingPlan} label="Implementing" /> 
         </div>
       </div>
       

@@ -5,9 +5,10 @@ import Image from "next/image"
 
 interface FinnAnimationProps {
   isVisible: boolean
+  label?: string
 }
 
-export default function FinnAnimation({ isVisible }: FinnAnimationProps) {
+export default function FinnAnimation({ isVisible, label = "Thinking" }: FinnAnimationProps) {
   const [dots, setDots] = useState(".")
   const animationRef = useRef<HTMLDivElement>(null)
 
@@ -89,7 +90,7 @@ export default function FinnAnimation({ isVisible }: FinnAnimationProps) {
       {/* Thinking text with dots */}
       <div className="mt-4 text-center">
         <div className="inline-flex items-center justify-center bg-gray-800 rounded-full px-4 py-2">
-          <span className="text-white">Thinking{dots}</span>
+          <span className="text-white">{label}{dots}</span>
         </div>
       </div>
     </div>
