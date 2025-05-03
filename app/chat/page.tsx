@@ -5,6 +5,7 @@ import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import FinnAnimation from "@/components/finn-animation"
+import ReactMarkdown from 'react-markdown'
 
 export default function Chat() {
   const [message, setMessage] = useState("")
@@ -29,21 +30,72 @@ export default function Chat() {
     "I've prepared a budget plan for your upcoming trip. Would you like to see it?",
   ]
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (message.trim()) {
-      // Add user message
-      setMessages([...messages, { id: messages.length + 1, text: message, isUser: true }])
-      setMessage("")
+      const userMessage = { id: messages.length + 1, text: message, isUser: true };
+      // Add user message immediately
+      setMessages((prev) => [...prev, userMessage]);
+      const currentMessage = message; // Store message before clearing
+      setMessage("");
 
       // Show animation
-      setIsWaitingForResponse(true)
+      setIsWaitingForResponse(true);
 
-      // Simulate Finn's response after a delay
-      setTimeout(() => {
-        setIsWaitingForResponse(false)
-        const randomResponse = finnResponses[Math.floor(Math.random() * finnResponses.length)]
-        setMessages((prev) => [...prev, { id: prev.length + 1, text: randomResponse, isUser: false }])
-      }, 3500) // 3.5 second delay to show the animation
+      try {
+        // Call the internal Next.js API route
+        const response = await fetch('/api/chat', { 
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ task: currentMessage }),
+        });
+
+        setIsWaitingForResponse(false);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: response.statusText })); 
+          console.error("API Error:", response.status, errorData.error);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: prev.length + 1,
+              text: `Sorry, I encountered an error: ${errorData.error || 'Unknown error'}`, 
+              isUser: false 
+            }
+          ]);
+          return;
+        }
+
+        const data = await response.json();
+        // Extract the 'answer' field from the API response
+        let rawResponse = data.answer || "Sorry, I didn't get a valid answer."; 
+
+        // Strip the prefix if it exists
+        const prefix = "Solution: ";
+        if (typeof rawResponse === 'string' && rawResponse.startsWith(prefix)) {
+          rawResponse = rawResponse.substring(prefix.length);
+        }
+        
+        const finnResponse = rawResponse;
+
+        setMessages((prev) => [
+          ...prev,
+          { id: prev.length + 1, text: finnResponse, isUser: false },
+        ]);
+
+      } catch (error) {
+        setIsWaitingForResponse(false);
+        console.error("Failed to send message:", error);
+        let errorMessage = "Sorry, I couldn't connect to the service.";
+        if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+        setMessages((prev) => [
+          ...prev,
+          { id: prev.length + 1, text: errorMessage, isUser: false },
+        ]);
+      }
     }
   }
 
@@ -95,7 +147,17 @@ export default function Chat() {
             }
           >
             <div className="flex-1">
-              <p>{msg.text}</p>
+              {/* Use ReactMarkdown for assistant messages, plain <p> for user */}
+              {msg.isUser ? (
+                <p>{msg.text}</p>
+              ) : (
+                // Wrap ReactMarkdown in a div and apply prose styles there
+                <div className="prose prose-invert max-w-none">
+                  <ReactMarkdown>
+                    {msg.text}
+                  </ReactMarkdown>
+                </div>
+              )}
             </div>
           </div>
         ))}
