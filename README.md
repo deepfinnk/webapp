@@ -9,7 +9,7 @@ The application provides a user interface to interact with Bunq account data and
 ## Features
 
 *   **Account Overview:** Displays Total, Main, and Savings account balances.
-*   **Quick Actions:** Buttons for common actions like Pay, Request, and Add money.
+*   **Bunq Style:** Aims to replicate the og bunq experience.
 *   **AI Chat Assistant:** Interact with an AI to get financial advice and generate savings plans.
 *   **Financial Plan Display:** Renders AI-generated financial plans with actionable steps.
 *   **Financial Plan Storage:** (Planned) Backend API to save and manage user-generated financial plans.
@@ -20,7 +20,6 @@ The application provides a user interface to interact with Bunq account data and
 *   **Language:** TypeScript
 *   **UI:** React, Tailwind CSS, shadcn/ui
 *   **Development:** v0.dev
-*   **Deployment:** Vercel
 
 ## Getting Started
 
