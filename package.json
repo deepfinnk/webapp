@@ -1,7 +1,14 @@
 {
-  "name": "my-v0-project",
+  "name": "deepfinnk-frontend",
+  "description": "Frontend for the Bunq AI Financial Assistant, providing account overview, quick actions, and AI-driven financial planning.",
   "version": "0.1.0",
   "private": true,
+  "authors": [
+    "Victor Hornet",
+    "Andrea Onofrei",
+    "Yulin Chen",
+    "Denis Krylov"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
