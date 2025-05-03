@@ -20,6 +20,7 @@ interface Message {
   isUser: boolean
   points?: string[] // For bullet points in a plan
   isPlan?: boolean // Flag to render as a plan with buttons
+  isConfirmed?: boolean // Flag to indicate if a plan has been confirmed
 }
 
 // Utility function to format time in a consistent way between server and client
@@ -165,14 +166,14 @@ export default function Chat() {
 
   // Add handlers for plan confirmation/cancellation
   const handleConfirmPlan = () => {
-    // Update the last message to remove the buttons but keep the plan
+    // Update the last message to mark it as confirmed but keep the plan UI
     setMessages(prev => {
       const updatedMessages = [...prev];
       const lastMessage = {...updatedMessages[updatedMessages.length - 1]};
       
       if (lastMessage.isPlan) {
-        lastMessage.isPlan = false; // Remove the buttons but keep the formatted plan
-        lastMessage.text = "✓ Plan confirmed:\n\n" + lastMessage.text;
+        // Mark as confirmed but keep the plan format
+        lastMessage.isConfirmed = true;
         updatedMessages[updatedMessages.length - 1] = lastMessage;
       }
       
@@ -386,26 +387,28 @@ export default function Chat() {
         </div>
       </div>
 
-      <div className="flex items-center justify-center py-6">
-        <div className="flex flex-col items-center">
-          <div className="relative w-16 h-16">
-            <div className="absolute inset-0 rounded-full overflow-hidden flex items-center justify-center">
-              <div className="w-[90%] h-[90%] relative">
-                <Image src="/images/finn-emoji.png" alt="Finn emoji" fill className="object-contain" />
+      <div className="flex-1 overflow-y-auto p-4">
+        {/* DeepFinnk header now inside scrollable area */}
+        <div className="flex items-center justify-center py-6 mb-6">
+          <div className="flex flex-col items-center">
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 rounded-full overflow-hidden flex items-center justify-center">
+                <div className="w-[90%] h-[90%] relative">
+                  <Image src="/images/finn-emoji.png" alt="Finn emoji" fill className="object-contain" />
+                </div>
               </div>
             </div>
-          </div>
-          <div className="mt-2 text-white">
-            <div className="text-xl font-bold">
-              Deep<span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-pink-500">Finn</span>k
+            <div className="mt-2 text-white">
+              <div className="text-xl font-bold">
+                Deep<span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-pink-500">Finn</span>k
+              </div>
+              <div className="text-center">0.5</div>
             </div>
-            <div className="text-center">0.5</div>
           </div>
         </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg) => (
+        
+        <div className="space-y-4">
+          {messages.map((msg) => (
           <div
             key={msg.id}
             className={`${
@@ -416,18 +419,12 @@ export default function Chat() {
                   : "bg-gray-800 rounded-xl p-4 max-w-[80%]"
             }`}
             style={
-              !msg.isUser
-                ? msg.isPlan
-                  ? {
-                      border: "2px solid",
-                      borderImage: "linear-gradient(45deg, #ff0000, #ff7700, #ffff00, #00ff00, #0000ff, #8b00ff) 1",
-                      boxShadow: "0 0 10px rgba(150, 150, 150, 0.2)"
-                    }
-                  : {
-                      borderLeft: "4px solid",
-                      borderRight: "4px solid",
-                      borderImage: "linear-gradient(to bottom, #9932CC, #FF6600) 1",
-                    }
+              !msg.isUser && msg.isPlan
+                ? {
+                    border: "2px solid",
+                    borderImage: "linear-gradient(45deg, #ff0000, #ff7700, #ffff00, #00ff00, #0000ff, #8b00ff) 1",
+                    boxShadow: "0 0 10px rgba(150, 150, 150, 0.2)"
+                  }
                 : {}
             }
           >
@@ -450,17 +447,26 @@ export default function Chat() {
                   
                   <div className="flex gap-3 mt-4 pt-3 border-t border-gray-700">
                     <button 
-                      onClick={handleCancelPlan} 
+                      onClick={msg.isConfirmed ? undefined : handleCancelPlan} 
                       className="flex-1 py-2 px-4 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
                     >
-                      Cancel
+                      {msg.isConfirmed ? 'Edit' : 'Cancel'}
                     </button>
-                    <button 
-                      onClick={handleConfirmPlan}
-                      className="flex-1 py-2 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-lg font-medium transition-colors"
-                    >
-                      Confirm Plan
-                    </button>
+                    {msg.isConfirmed ? (
+                      <button 
+                        className="flex-1 py-2 px-4 bg-green-600 rounded-lg font-medium transition-colors flex items-center justify-center"
+                        disabled
+                      >
+                        <span className="mr-1">✓</span> Confirmed
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={handleConfirmPlan}
+                        className="flex-1 py-2 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 rounded-lg font-medium transition-colors"
+                      >
+                        Confirm Plan
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -477,6 +483,7 @@ export default function Chat() {
 
         {/* Show the animation only when waiting for response */}
         <FinnAnimation isVisible={isWaitingForResponse} />
+        </div>
       </div>
       
       {/* Sliding Chat History Panel */}
